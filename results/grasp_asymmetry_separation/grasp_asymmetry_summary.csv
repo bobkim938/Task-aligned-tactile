@@ -1,0 +1,7 @@
+outcome,n,mean,std,median
+success,885,0.028733,0.046080,0.013475
+failure,84,0.235502,0.228562,0.158473
+
+metric,value
+separation_ratio_fail_over_succ,8.196320
+mannwhitney_p,7.755096e-34

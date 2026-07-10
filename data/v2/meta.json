@@ -1,0 +1,28 @@
+{
+  "tag": "v2",
+  "num_episodes": 1000,
+  "policy_checkpoint": "runs/ppo_enco2/ckpt_526.pt",
+  "encoder_checkpoint": "tactile_encoder/runs/tactile_encoder_v2/best_encoder.pt",
+  "num_steps_per_episode": 100,
+  "num_success": 885,
+  "num_failure": 115,
+  "phase_scheme": "3-class: 0=free (post-slip merged), 1=grasp, 2=transport",
+  "z_dim": 16,
+  "tactile_dim": 6,
+  "seed_start": 0,
+  "seed_end": 999,
+  "stored_fields": [
+    "z_t",
+    "tactile_raw",
+    "tactile_smoothed",
+    "is_grasped",
+    "phase",
+    "obj_pos",
+    "tcp_pos",
+    "obj_names",
+    "success",
+    "initial_obj_z",
+    "seeds"
+  ],
+  "tactile_note": "encoder consumes tactile_smoothed/100.0; stored tactile_smoothed is in physical units"
+}

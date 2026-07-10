@@ -1,0 +1,10 @@
+version,outcome,n,mean,std,median
+V1,success,711,0.474011,0.229155,0.546384
+V1,failure,112,0.661875,0.320247,0.658313
+V2,success,885,0.041303,0.018420,0.040197
+V2,failure,36,0.065228,0.026962,0.055307
+
+metric,value
+compression_v1_v2_success,11.476477
+separation_ratio_v2_fail_over_succ,1.579260
+mannwhitney_p_v2_succ_vs_fail,7.110840e-08

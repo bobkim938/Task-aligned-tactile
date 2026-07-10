@@ -1,0 +1,10 @@
+feature_set,cv_accuracy,cv_std
+norm_1d,0.505620,0.005019
+direction_16d,0.799250,0.010722
+full_16d,0.799020,0.013728
+
+metric,value
+majority_baseline,0.500320
+n_free,27141
+n_grasp,22827
+n_transport,50032

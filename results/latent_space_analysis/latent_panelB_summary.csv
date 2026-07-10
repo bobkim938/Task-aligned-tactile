@@ -1,0 +1,10 @@
+pair_type,n,mean
+within,160328,0.222096
+between,247828,0.248588
+
+metric,value
+ratio_between_over_within,1.119280
+n_categorized_episodes,904
+n_symmetric,350
+n_thin_elongated,126
+n_irregular,428
