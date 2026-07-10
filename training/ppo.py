@@ -1,3 +1,7 @@
+# Adapted from the ManiSkill PPO baseline:
+#   https://github.com/haosulab/ManiSkill/tree/main/examples/baselines/ppo
+# PPO algorithm: Schulman et al., 2017 (arXiv:1707.06347).
+
 from collections import defaultdict
 import os
 import random
