@@ -12,7 +12,7 @@ Produces:
 Usage:
   python tactile_encoder/analyze_encoder_data.py \
       --data-dir data/encoder_pretraining \
-      --output-dir analysis/encoder_data \
+      --output-dir analysis/pretraining_data \
       --window-size 16
 """
 
@@ -547,10 +547,8 @@ def analyze_temporal_discriminability(records, metadata, output_dir, window_size
         print("    Temporal window provides meaningful improvement -> Conv1D justified")
     elif f1_single > 0.9:
         print("  !!!  Single frame already strong — temporal window adds little")
-        print("     Consider simpler MLP encoder instead of Conv1D")
     else:
         print("  !!!  Both weak — slip signal may not be learnable from force alone")
-        print("     Check if slip events have consistent force precursors")
 
     # Save report
     with open(os.path.join(output_dir, "temporal_discriminability.txt"), "w") as f:

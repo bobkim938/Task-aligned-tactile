@@ -1,0 +1,11 @@
+Class Balance Report
+============================================================
+Total timesteps: 8524800
+
+Contact classifier:  True=6872636 (80.6%)  False=1652164 (19.4%)
+Stability predictor: Stable=6516452 (94.8%)  Unstable=356184 (5.2%)
+Slip predictor:      Imminent=267444 (3.9%)  Safe=6605192 (96.1%)
+Phase 'free':       1353107 (15.9%)
+Phase 'grasp':       2635831 (30.9%)
+Phase 'transport':       4236805 (49.7%)
+Phase 'post_slip':       299057 (3.5%)

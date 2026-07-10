@@ -18,7 +18,7 @@ Records per-timestep:
 
 Usage:
   python tactile_encoder/collect_encoder_data.py \
-      --checkpoint checkpoints/policy_oracle.pt \
+      --checkpoint checkpoints/dataGen_policy.pt \
       --output-dir data/encoder_pretraining \
       --num-envs 256 \
       --episodes-per-mix 200 \

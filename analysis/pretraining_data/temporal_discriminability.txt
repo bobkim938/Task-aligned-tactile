@@ -1,0 +1,9 @@
+Temporal Discriminability Analysis
+==================================================
+Window size: 16
+Total samples: 6715369
+Positive (slip imminent): 252891
+Negative (safe): 6462478
+
+Single-frame:  Acc=0.5087  F1=0.0894
+Window:        Acc=0.5063  F1=0.0896
