@@ -16,8 +16,8 @@ Reads:
     data/v2/deployment_records.npz
 
 Writes:
-    results/latent_space_analysis/latent_space_analysis.pdf  (IEEEconf vector format)
-    results/latent_space_analysis/latent_space_analysis.png  (preview)
+    results/latent_space_analysis/latent_space_analysis.pdf
+    results/latent_space_analysis/latent_space_analysis.png
     results/latent_space_analysis/latent_panelA_phase_accuracy.csv
     results/latent_space_analysis/latent_panelB_pairwise_distances.csv
     results/latent_space_analysis/latent_panelB_summary.csv

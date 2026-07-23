@@ -1,0 +1,25 @@
+condition,category,mean_success_pct,std_success_pct,n_eval_seeds,n_objects
+Visual-only (seed1),Symmetric/Uniform,89.77,0.94,10,22
+Visual-only (seed1),Thin/Elongated,14.27,2.57,10,11
+Visual-only (seed1),Irregular,64.34,3.37,10,29
+Raw Tactile (seed1),Symmetric/Uniform,90.91,1.95,10,22
+Raw Tactile (seed1),Thin/Elongated,79.18,3.57,10,11
+Raw Tactile (seed1),Irregular,81.52,2.90,10,29
+Raw Tactile (seed4),Symmetric/Uniform,92.27,1.41,10,22
+Raw Tactile (seed4),Thin/Elongated,78.27,3.30,10,11
+Raw Tactile (seed4),Irregular,82.83,1.95,10,29
+Encoder (Ours) (seed1),Symmetric/Uniform,92.59,1.27,10,22
+Encoder (Ours) (seed1),Thin/Elongated,81.82,4.13,10,11
+Encoder (Ours) (seed1),Irregular,92.72,1.42,10,29
+Encoder (Ours) (seed4),Symmetric/Uniform,94.68,1.37,10,22
+Encoder (Ours) (seed4),Thin/Elongated,84.18,4.37,10,11
+Encoder (Ours) (seed4),Irregular,93.62,1.73,10,29
+Visual-only (pooled),Symmetric/Uniform,89.77,0.00,1,
+Visual-only (pooled),Thin/Elongated,14.27,0.00,1,
+Visual-only (pooled),Irregular,64.34,0.00,1,
+Raw Tactile (pooled),Symmetric/Uniform,91.59,0.96,2,
+Raw Tactile (pooled),Thin/Elongated,78.73,0.64,2,
+Raw Tactile (pooled),Irregular,82.17,0.93,2,
+Encoder (Ours) (pooled),Symmetric/Uniform,93.64,1.48,2,
+Encoder (Ours) (pooled),Thin/Elongated,83.00,1.67,2,
+Encoder (Ours) (pooled),Irregular,93.17,0.63,2,

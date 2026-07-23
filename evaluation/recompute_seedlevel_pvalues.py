@@ -9,21 +9,39 @@ SEED level.
   - paired t-test on seed-matched rates (if seeds align across conditions)
   - Mann-Whitney U on seed-level rates (nonparametric backup)
 
-Usage:
-  python evaluation/recompute_seedlevel_pvalues.py \
+Usage (primary run):
+    python evaluation/recompute_seedlevel_pvalues.py \
       --csv results/multiseed_eval_raw.csv \
       --cond-a visual_encoder --cond-b visual_raw_tact
 
-Edit CATEGORY_MAP / the column-name guesses below if your CSV differs.
+    python evaluation/recompute_seedlevel_pvalues.py \
+      --csv results/multiseed_eval_raw.csv \
+      --cond-a oracle --cond-b visual_encoder
+
+Usage (primary + secondary training runs, across-run spread):
+    python evaluation/recompute_seedlevel_pvalues.py \
+      --csv results/multiseed_eval_raw.csv \
+      --cond-a visual_encoder --cond-b visual_raw_tact \
+      --across-runs-csv results/multi-seed_check/multiseed_eval_raw.csv \
+      --run-suffixes seed1,seed4
+
+    python evaluation/recompute_seedlevel_pvalues.py \
+      --csv results/multiseed_eval_raw.csv \
+      --cond-a visual_encoder --cond-b visual_only \
+      --across-runs-csv results/multi-seed_check/multiseed_eval_raw.csv \
+      --run-suffixes seed1
 """
 
 import argparse
 import csv
 import sys
+import warnings
 from collections import defaultdict
 
 import numpy as np
 from scipy import stats
+
+warnings.filterwarnings("ignore", message="Precision loss occurred")
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +116,7 @@ def load_rows(path):
                 break
         if seed_c is None:
             raise SystemExit(
-                "[fatal] No seed column found. Seed-level tests are impossible "
+                "No seed column found. Seed-level tests are impossible "
                 f"without one. Looked for {SEED_COLS}; CSV has {cols}. If your "
                 "episodes are not tagged by seed, the per-variant p-values "
                 "cannot be computed correctly -- the episode-level numbers are "
@@ -123,6 +141,16 @@ def seed_rates(rows, obj, cond):
     by_seed = defaultdict(lambda: [0, 0])  # seed -> [successes, n]
     for r in rows:
         if r["obj"] == obj and r["cond"] == cond:
+            by_seed[r["seed"]][0] += r["success"]
+            by_seed[r["seed"]][1] += 1
+    return {s: sc / n for s, (sc, n) in by_seed.items() if n > 0}
+
+
+def pooled_seed_rates(rows, objset, cond):
+    """Return dict seed -> success rate pooled over a set of objects."""
+    by_seed = defaultdict(lambda: [0, 0])
+    for r in rows:
+        if r["cond"] == cond and (objset is None or r["obj"] in objset):
             by_seed[r["seed"]][0] += r["success"]
             by_seed[r["seed"]][1] += 1
     return {s: sc / n for s, (sc, n) in by_seed.items() if n > 0}
@@ -186,6 +214,11 @@ def fmt_p(p):
     return f"{p:.4f}"
 
 
+def fmt_ms(mean, std):
+    """Format 'mean +/- std' as percentages, e.g. ' 71.0+/-20.3'."""
+    return f"{100*mean:5.1f}+/-{100*std:4.1f}"
+
+
 def category_of(obj):
     for cat, objs in CATEGORY_MAP.items():
         if obj in objs:
@@ -193,9 +226,135 @@ def category_of(obj):
     return None
 
 
+def across_runs_section(rows_primary, rows_extra, cond_a, cond_b, suffixes,
+                        objs, alpha_note=True):
+    """Per-run success rates (mean over eval seeds) -> mean +/- std ACROSS RUNS.
+
+    Run 0 is the primary run from --csv (conditions `cond_a` / `cond_b`);
+    runs 1..k come from --across-runs-csv with conditions `cond_a_<suffix>`.
+    """
+    run_labels = ["primary"] + list(suffixes)
+
+    def per_run_rate(obj_or_set, cond_base):
+        """Return list of per-run rates (None where the run is missing)."""
+        out = []
+        objset = None
+        if isinstance(obj_or_set, str):
+            objset = {obj_or_set}
+        elif obj_or_set is not None:
+            objset = set(obj_or_set)
+        # primary
+        r = pooled_seed_rates(rows_primary, objset, cond_base)
+        out.append(float(np.mean(list(r.values()))) if r else None)
+        # secondary runs
+        for suf in suffixes:
+            r = pooled_seed_rates(rows_extra, objset, f"{cond_base}_{suf}")
+            out.append(float(np.mean(list(r.values()))) if r else None)
+        return out
+
+    def summarize(vals):
+        v = np.array([x for x in vals if x is not None])
+        if len(v) == 0:
+            return None
+        return {
+            "n": len(v),
+            "mean": v.mean(),
+            "std": v.std(ddof=1) if len(v) > 1 else 0.0,
+            "min": v.min(),
+            "max": v.max(),
+        }
+
+    print("\n" + "=" * 110)
+    print("ACROSS-RUN comparison  (unit of analysis = TRAINING RUN, "
+          f"runs = {run_labels})")
+    print("  Each run's rate is the mean over its evaluation seeds.")
+    print("  'min gain' is the worst-case A-B over runs; a positive value means")
+    print("  the ordering never inverts across independent training runs.")
+    print("=" * 110)
+
+    # ---- per category ----
+    print(f"{'category':<18}{'#obj':>6}{'#run':>6}"
+          f"{'A mean+/-sd':>15}{'B mean+/-sd':>15}"
+          f"{'mean gain':>11}{'min gain':>10}{'max gain':>10}")
+    print("-" * 110)
+    for cat, olist in CATEGORY_MAP.items():
+        present = [o for o in olist if o in objs]
+        if not present:
+            continue
+        a_runs = per_run_rate(present, cond_a)
+        b_runs = per_run_rate(present, cond_b)
+        gains = [100 * (a - b) for a, b in zip(a_runs, b_runs)
+                 if a is not None and b is not None]
+        sa, sb = summarize(a_runs), summarize(b_runs)
+        if sa is None or sb is None or not gains:
+            continue
+        print(f"{cat:<18}{len(present):>6}{len(gains):>6}"
+              f"{fmt_ms(sa['mean'], sa['std']):>15}"
+              f"{fmt_ms(sb['mean'], sb['std']):>15}"
+              f"{np.mean(gains):>11.1f}{min(gains):>10.1f}{max(gains):>10.1f}")
+
+    # ---- overall ----
+    a_runs = per_run_rate(None, cond_a)
+    b_runs = per_run_rate(None, cond_b)
+    gains = [100 * (a - b) for a, b in zip(a_runs, b_runs)
+             if a is not None and b is not None]
+    sa, sb = summarize(a_runs), summarize(b_runs)
+    if sa and sb and gains:
+        print("-" * 110)
+        print(f"{'ALL OBJECTS':<18}{len(objs):>6}{len(gains):>6}"
+              f"{fmt_ms(sa['mean'], sa['std']):>15}"
+              f"{fmt_ms(sb['mean'], sb['std']):>15}"
+              f"{np.mean(gains):>11.1f}{min(gains):>10.1f}{max(gains):>10.1f}")
+        print(f"  A range across runs: {100*sa['min']:.2f}--{100*sa['max']:.2f}"
+              f"   B range across runs: {100*sb['min']:.2f}--{100*sb['max']:.2f}")
+        if sa["min"] > sb["max"]:
+            # exact one-tailed permutation p for complete separation
+            from math import comb
+            n_a, n_b = sa["n"], sb["n"]
+            p_perm = 1.0 / comb(n_a + n_b, n_a)
+            print(f"  Complete separation: weakest A run "
+                  f"({100*sa['min']:.2f}) > strongest B run "
+                  f"({100*sb['max']:.2f}) by {100*(sa['min']-sb['max']):.2f} "
+                  f"points  (exact permutation p = {p_perm:.3f})")
+
+    # ---- per object, sorted by worst-case gain ----
+    print("\n" + "-" * 110)
+    print("PER-OBJECT across-run summary (sorted by worst-case gain)")
+    print(f"{'object':<26}{'#run':>6}{'A mean+/-sd':>15}{'B mean+/-sd':>15}"
+          f"{'mean gain':>11}{'min gain':>10}{'per-run gains':>26}")
+    print("-" * 110)
+    recs = []
+    for o in objs:
+        a_runs = per_run_rate(o, cond_a)
+        b_runs = per_run_rate(o, cond_b)
+        gains = [100 * (a - b) for a, b in zip(a_runs, b_runs)
+                 if a is not None and b is not None]
+        gains = [0.0 if abs(g) < 1e-9 else g for g in gains]  # kill -0.0
+        sa, sb = summarize(a_runs), summarize(b_runs)
+        if sa is None or sb is None or not gains:
+            continue
+        recs.append((min(gains), np.mean(gains), o, sa, sb, gains))
+    recs.sort(key=lambda x: -x[0])
+    for mn, mu, o, sa, sb, gains in recs:
+        gstr = " ".join(f"{g:+.0f}" for g in gains)
+        print(f"{o:<26}{len(gains):>6}"
+              f"{fmt_ms(sa['mean'], sa['std']):>15}"
+              f"{fmt_ms(sb['mean'], sb['std']):>15}"
+              f"{mu:>11.1f}{mn:>10.1f}{gstr:>26}")
+
+    if alpha_note:
+        n_neg = sum(1 for r in recs if max(r[5]) < 0)
+        n_all_pos = sum(1 for r in recs if r[0] > 0)
+        print("-" * 110)
+        print(f"  Objects with a positive gain in EVERY run: {n_all_pos}/{len(recs)}")
+        print(f"  Objects with a negative gain in EVERY run: {n_neg}/{len(recs)}")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--csv", required=True)
+    ap.add_argument("--csv", required=True,
+                    help="primary-run episode CSV "
+                         "(e.g. results/multiseed_eval_raw.csv)")
     ap.add_argument("--cond-a", default="visual_encoder",
                     help="condition A (default: Encoder)")
     ap.add_argument("--cond-b", default="visual_raw_tact",
@@ -203,6 +362,17 @@ def main():
     ap.add_argument("--filter", default=None,
                     help="only objects whose name contains this substring "
                          "(e.g. 'lego_duplo' or 'wrench')")
+    ap.add_argument("--across-runs-csv", default=None,
+                    help="episode CSV holding the secondary training runs "
+                         "(e.g. results/multi-seed_check/multiseed_eval_raw.csv). "
+                         "Conditions there are expected to be named "
+                         "'<cond>_<suffix>', e.g. visual_encoder_seed1.")
+    ap.add_argument("--run-suffixes", default="seed1,seed4",
+                    help="comma-separated run suffixes present in "
+                         "--across-runs-csv (default: seed1,seed4)")
+    ap.add_argument("--bonferroni", action="store_true",
+                    help="also report which per-object tests survive "
+                         "Bonferroni correction over the objects tested")
     args = ap.parse_args()
 
     rows = load_rows(args.csv)
@@ -218,12 +388,13 @@ def main():
         objs = [o for o in objs if args.filter in o]
 
     # ---- Per-object (per-variant) seed-level tests ----
-    print("=" * 100)
+    print("=" * 118)
     print("PER-OBJECT seed-level comparison (A - B)")
-    print("=" * 100)
-    print(f"{'object':<24}{'A mean':>9}{'B mean':>9}{'gap':>8}"
+    print("  mean +/- std are over EVALUATION seeds within this training run")
+    print("=" * 118)
+    print(f"{'object':<24}{'A mean+/-sd':>16}{'B mean+/-sd':>16}{'gap':>8}"
           f"{'Welch p':>11}{'paired p':>11}{'MW p':>10}{'#seed':>7}")
-    print("-" * 100)
+    print("-" * 118)
 
     results = []
     for o in objs:
@@ -231,7 +402,8 @@ def main():
         if c is None:
             continue
         results.append(c)
-        print(f"{o:<24}{100*c['mean_a']:>8.1f}%{100*c['mean_b']:>8.1f}%"
+        print(f"{o:<24}{fmt_ms(c['mean_a'], c['std_a']):>15}%"
+              f"{fmt_ms(c['mean_b'], c['std_b']):>15}%"
               f"{100*c['gap']:>7.1f}"
               f"{fmt_p(c['welch_p']):>11}{fmt_p(c['paired_p']):>11}"
               f"{fmt_p(c['mw_p']):>10}{c['n_common']:>7}")
@@ -240,6 +412,19 @@ def main():
     def pref_p(c):
         # prefer paired when seeds align, else Welch
         return c["paired_p"] if (c["n_common"] >= 2 and c["paired_p"] == c["paired_p"]) else c["welch_p"]
+
+    if args.bonferroni:
+        m = sum(1 for c in results if pref_p(c) == pref_p(c))  # non-nan tests
+        if m:
+            alpha = 0.05 / m
+            surv = [c for c in results
+                    if pref_p(c) == pref_p(c) and pref_p(c) < alpha]
+            print("-" * 118)
+            print(f"  Bonferroni over {m} testable objects: alpha = {alpha:.2e}; "
+                  f"{len(surv)} objects survive")
+            print("   " + ", ".join(f"{c['obj']} ({100*c['gap']:+.0f})"
+                                    for c in sorted(surv,
+                                                    key=lambda c: -c['gap'])))
 
     if args.filter:
         gains17 = [c for c in results if c["gap"] * 100 >= 17]
@@ -250,16 +435,57 @@ def main():
         print(f"    of those, p < 0.01 (preferred test): {len(sig01)}")
         print(f"    of those, p < 0.05 (preferred test): {len(sig05)}")
 
+    # ---- OVERALL (all objects pooled) seed-level test ----
+    # headline comparison: one success rate per seed per condition, pooled across every object (not just one category).
+    print("\n" + "=" * 118)
+    print("OVERALL seed-level comparison (all objects pooled)")
+    print("  (unit of analysis = seed, n = #seeds; A vs B)")
+    print("=" * 118)
+    a_by_seed = defaultdict(lambda: [0, 0])
+    b_by_seed = defaultdict(lambda: [0, 0])
+    for r in rows:
+        if r["cond"] == args.cond_a:
+            a_by_seed[r["seed"]][0] += r["success"]
+            a_by_seed[r["seed"]][1] += 1
+        elif r["cond"] == args.cond_b:
+            b_by_seed[r["seed"]][0] += r["success"]
+            b_by_seed[r["seed"]][1] += 1
+    common = sorted(set(a_by_seed) & set(b_by_seed))
+    if len(common) < 2:
+        print("  [skip] fewer than 2 common seeds between conditions.")
+    else:
+        a = np.array([a_by_seed[s][0] / a_by_seed[s][1] for s in common])
+        b = np.array([b_by_seed[s][0] / b_by_seed[s][1] for s in common])
+
+        t, p = stats.ttest_ind(a, b, equal_var=False)
+        if np.allclose(a, b):
+            paired_p = 1.0
+        else:
+            _, paired_p = stats.ttest_rel(a, b)
+        try:
+            _, pmw = stats.mannwhitneyu(a, b, alternative="two-sided")
+        except ValueError:
+            pmw = float("nan")
+
+        print(f"{'#seed':>7}{'A mean+/-sd':>16}{'B mean+/-sd':>16}{'gap':>8}"
+              f"{'Welch t':>10}{'Welch p':>11}{'paired p':>11}{'MW p':>10}")
+        print("-" * 118)
+        print(f"{len(common):>7}{fmt_ms(a.mean(), a.std(ddof=1)):>15}%"
+              f"{fmt_ms(b.mean(), b.std(ddof=1)):>15}%"
+              f"{100*(a.mean()-b.mean()):>7.2f}{t:>10.2f}"
+              f"{fmt_p(p):>11}{fmt_p(paired_p):>11}{fmt_p(pmw):>10}")
+
     # Per-category seed-level tests
     if CATEGORY_MAP:
-        print("\n" + "=" * 100)
+        print("\n" + "=" * 118)
         print("PER-CATEGORY seed-level comparison")
         print("  (objects collapsed within each seed -> one rate per seed per")
         print("   condition; unit of analysis = seed, n = #seeds; paired A vs B)")
-        print("=" * 100)
-        print(f"{'category':<18}{'#obj':>6}{'#seed':>7}{'A mean':>9}{'B mean':>9}"
+        print("=" * 118)
+        print(f"{'category':<18}{'#obj':>6}{'#seed':>7}"
+              f"{'A mean+/-sd':>16}{'B mean+/-sd':>16}"
               f"{'gap':>8}{'paired p':>12}{'MW p':>11}")
-        print("-" * 100)
+        print("-" * 118)
         cat_objs = defaultdict(list)
         for o in {r["obj"] for r in rows}:
             cat = category_of(o)
@@ -292,12 +518,28 @@ def main():
                 _, pmw = stats.mannwhitneyu(a, b, alternative="two-sided")
             except ValueError:
                 pmw = float("nan")
-            print(f"{cat:<18}{len(olist):>6}{len(common):>7}{100*a.mean():>8.1f}%"
-                  f"{100*b.mean():>8.1f}%{100*(a.mean()-b.mean()):>7.1f}"
+            print(f"{cat:<18}{len(olist):>6}{len(common):>7}"
+                  f"{fmt_ms(a.mean(), a.std(ddof=1)):>15}%"
+                  f"{fmt_ms(b.mean(), b.std(ddof=1)):>15}%"
+                  f"{100*(a.mean()-b.mean()):>7.1f}"
                   f"{fmt_p(p):>12}{fmt_p(pmw):>11}")
     else:
         print("\n[note] CATEGORY_MAP is empty -- per-category section skipped.")
         print("       Fill CATEGORY_MAP at the top of the script to enable it.")
+
+    # ---- ACROSS-RUN section (optional) ----
+    if args.across_runs_csv:
+        rows_extra = load_rows(args.across_runs_csv)
+        extra_conds = sorted({r["cond"] for r in rows_extra})
+        suffixes = [s.strip() for s in args.run_suffixes.split(",") if s.strip()]
+        missing = [f"{c}_{s}" for c in (args.cond_a, args.cond_b)
+                   for s in suffixes
+                   if f"{c}_{s}" not in extra_conds]
+        if missing:
+            print(f"[warn] missing conditions in --across-runs-csv: {missing}")
+            print(f"       available: {extra_conds}")
+        across_runs_section(rows, rows_extra, args.cond_a, args.cond_b,
+                            suffixes, objs)
 
 
 if __name__ == "__main__":
