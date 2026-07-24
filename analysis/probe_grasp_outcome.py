@@ -13,8 +13,7 @@ Three feature sets, all aggregated as per-episode mean over grasped timesteps
      mean of z_t over grasped steps.
 
 For each feature set, train logistic regression with 5-fold stratified CV
-to predict episode success y in {0, 1}, and report ROC-AUC, PR-AUC,
-F1 on the failure class, and accuracy.
+to predict episode success y in {0, 1}, and report ROC-AUC.
 
 Reads:
     data/v2/deployment_records.npz
@@ -28,12 +27,7 @@ from pathlib import Path
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    roc_auc_score,
-    average_precision_score,
-    f1_score,
-    accuracy_score,
-)
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
 
@@ -108,7 +102,7 @@ def load_and_aggregate():
 
 def run_probe(X, y, label, n_splits=5):
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-    aucs, prs, f1s, accs = [], [], [], []
+    aucs = []
 
     for train_idx, test_idx in skf.split(X, y):
         X_train, X_test = X[train_idx], X[test_idx]
@@ -121,24 +115,14 @@ def run_probe(X, y, label, n_splits=5):
         )
         clf.fit(X_train, y_train)
         p_success = clf.predict_proba(X_test)[:, 1]
-        y_pred = (p_success >= 0.5).astype(int)
 
         aucs.append(roc_auc_score(y_test, p_success))
-        prs.append(average_precision_score(1 - y_test, 1 - p_success))
-        f1s.append(f1_score(y_test, y_pred, pos_label=0))
-        accs.append(accuracy_score(y_test, y_pred))
 
     return {
         "label":    label,
         "dim":      X.shape[1],
         "auc_mean": float(np.mean(aucs)),
         "auc_std":  float(np.std(aucs, ddof=1)),
-        "pr_mean":  float(np.mean(prs)),
-        "pr_std":   float(np.std(prs, ddof=1)),
-        "f1_mean":  float(np.mean(f1s)),
-        "f1_std":   float(np.std(f1s, ddof=1)),
-        "acc_mean": float(np.mean(accs)),
-        "acc_std":  float(np.std(accs, ddof=1)),
     }
 
 
@@ -147,17 +131,12 @@ def print_results(results, n_episodes, n_success, n_failure):
     print("Probe results: predicting episode success from grasp-phase representation")
     print("=" * 96)
     print(f"  Episodes: {n_episodes}  (success={n_success}, failure={n_failure})")
-    print(f"  Majority baseline accuracy: {n_success/n_episodes:.4f}")
     print()
-    print(f"{'Feature set':<28} {'Dim':>4} "
-          f"{'ROC-AUC':>16} {'PR-AUC':>16} {'F1 (fail)':>16} {'Acc':>16}")
+    print(f"{'Feature set':<28} {'Dim':>4} {'ROC-AUC':>16}")
     print("-" * 96)
     for r in results:
         print(f"{r['label']:<28} {r['dim']:>4} "
-              f"{r['auc_mean']:>8.4f} ± {r['auc_std']:.3f}  "
-              f"{r['pr_mean']:>7.4f} ± {r['pr_std']:.3f}  "
-              f"{r['f1_mean']:>7.4f} ± {r['f1_std']:.3f}  "
-              f"{r['acc_mean']:>7.4f} ± {r['acc_std']:.3f}")
+              f"{r['auc_mean']:>8.4f} ± {r['auc_std']:.3f}")
     print()
 
 
@@ -177,12 +156,6 @@ def interpret(results):
           f"(linear control: {rand['auc_mean']-raw['auc_mean']:+.4f} vs raw)")
     print(f"  Trained encoder (16D)    : {trained['auc_mean']:.4f}   "
           f"(preservation: {total:+.4f} vs raw)")
-    print()
-    print("  Framing: the encoder's bottleneck PRESERVES the outcome-")
-    print("  discriminative information present in the raw signal. This is")
-    print("  a preservation claim, not an enhancement claim -- see diagnostic")
-    print("  script for the architectural control (untrained encoder).")
-    print()
 
 
 def main():

@@ -23,8 +23,7 @@ from pathlib import Path
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (roc_auc_score, average_precision_score,
-                             f1_score, accuracy_score)
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -40,25 +39,18 @@ SLIP_THRESH = 0.005      # meters of RELATIVE height loss that counts as slip
 # Shared CV helpers
 # ---------------------------------------------------------------------------
 def run_probe_full(X, y, n_splits=5):
-    """5-fold stratified CV; returns AUC / PR-AUC / F1(fail) / Acc with stds."""
+    """5-fold stratified CV; returns ROC-AUC mean/std."""
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-    aucs, prs, f1s, accs = [], [], [], []
+    aucs = []
     for tr, te in skf.split(X, y):
         clf = LogisticRegression(max_iter=5000, class_weight="balanced",
                                  solver="lbfgs")
         clf.fit(X[tr], y[tr])
         p = clf.predict_proba(X[te])[:, 1]
-        yp = (p >= 0.5).astype(int)
         aucs.append(roc_auc_score(y[te], p))
-        prs.append(average_precision_score(1 - y[te], 1 - p))
-        f1s.append(f1_score(y[te], yp, pos_label=0))
-        accs.append(accuracy_score(y[te], yp))
     return {
         "dim": X.shape[1],
         "auc_mean": float(np.mean(aucs)), "auc_std": float(np.std(aucs, ddof=1)),
-        "pr_mean": float(np.mean(prs)), "pr_std": float(np.std(prs, ddof=1)),
-        "f1_mean": float(np.mean(f1s)), "f1_std": float(np.std(f1s, ddof=1)),
-        "acc_mean": float(np.mean(accs)), "acc_std": float(np.std(accs, ddof=1)),
     }
 
 
@@ -126,16 +118,12 @@ def outcome_probe(d):
         print(f"  {label:<20} ROC-AUC = {r['auc_mean']:.4f} ± {r['auc_std']:.3f}")
 
     print()
-    print(f"  {'Feature set':<20}{'Dim':>4}{'ROC-AUC':>16}{'PR-AUC':>16}"
-          f"{'F1(fail)':>14}{'Acc':>14}")
-    print("  " + "-" * 84)
+    print(f"  {'Feature set':<20}{'Dim':>4}{'ROC-AUC':>16}")
+    print("  " + "-" * 40)
     for label, _ in sets:
         r = res[label]
         print(f"  {label:<20}{r['dim']:>4}"
-              f"{r['auc_mean']:>9.4f}±{r['auc_std']:.3f}"
-              f"{r['pr_mean']:>9.4f}±{r['pr_std']:.3f}"
-              f"{r['f1_mean']:>7.4f}±{r['f1_std']:.3f}"
-              f"{r['acc_mean']:>7.4f}±{r['acc_std']:.3f}")
+              f"{r['auc_mean']:>9.4f}±{r['auc_std']:.3f}")
 
     raw_auc = res["Raw tactile"]["auc_mean"]
     rawms_auc = res["Raw mean+std"]["auc_mean"]
