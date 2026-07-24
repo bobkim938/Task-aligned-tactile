@@ -527,7 +527,7 @@ def main():
         print("\n[note] CATEGORY_MAP is empty -- per-category section skipped.")
         print("       Fill CATEGORY_MAP at the top of the script to enable it.")
 
-    # ---- ACROSS-RUN section (optional) ----
+    # ---- ACROSS-RUN section ----
     if args.across_runs_csv:
         rows_extra = load_rows(args.across_runs_csv)
         extra_conds = sorted({r["cond"] for r in rows_extra})

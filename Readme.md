@@ -1,6 +1,6 @@
-# Phase-Aware Tactile Representation Learning
+# Task-Aligned Tactile Representation Learning for Robotic Manipulation
 
-Code and data for **Phase-Aware Tactile Representation Learning**.
+Code and data for **Task-Aligned Tactile Representation Learning**.
 
 We learn a tactile encoder that compensates for the object-pose information lost
 to visual occlusion during contact-rich manipulation. A robot cannot see an
@@ -115,9 +115,9 @@ python training/ppo.py --env_id=PickAndPlaceYCBToTray-v1 --exp-name policy_oracl
 
 python training/ppo.py --env_id=PickAndPlaceYCBToTray-v1 --exp-name policy_encoder --seed 4796 --num-envs 4096 --num-steps 16 --num-eval-envs 8 --num-eval-steps 100 --update-epochs 8 --num-minibatches 32 --total-timesteps 35000000 --gamma 0.93 --track --capture-video --save-model
 
-python training/ppo.py --env_id=PickAndPlaceYCBToTray-v1 --exp-name policy_raw_tactile --seed 4796 --num-envs 4096 --num-steps 16 --num-eval-envs 8 --num-eval-steps 100 --update-epochs 8 --num-minibatches 32 --total-timesteps 40000000 --gamma 0.93 --track --capture-video --save-model
+python training/ppo.py --env_id=PickAndPlaceYCBToTray-v1 --exp-name policy_raw_tactile --seed 4796 --num-envs 4096 --num-steps 16 --num-eval-envs 8 --num-eval-steps 100 --update-epochs 8 --num-minibatches 32 --total-timesteps 35000000 --gamma 0.93 --track --capture-video --save-model
 
-python training/ppo.py --env_id=PickAndPlaceYCBToTray-v1 --exp-name policy_visual_only --seed 4796 --num-envs 4096 --num-steps 16 --num-eval-envs 8 --num-eval-steps 100 --update-epochs 8 --num-minibatches 32 --total-timesteps 100000000 --gamma 0.93 --track --capture-video --save-model
+python training/ppo.py --env_id=PickAndPlaceYCBToTray-v1 --exp-name policy_visual_only --seed 4796 --num-envs 4096 --num-steps 16 --num-eval-envs 8 --num-eval-steps 100 --update-epochs 8 --num-minibatches 32 --total-timesteps 35000000 --gamma 0.93 --track --capture-video --save-model
 ```
 
 ### 3. Evaluate + collect deployment data *(optional; .npz shipped)*
