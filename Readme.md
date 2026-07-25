@@ -43,9 +43,7 @@ of analysis and are not interchangeable.
 
 The encoder recovers **87.7%** of the Visual-to-Oracle gap. The headline is the
 **12.6-point** gap between Encoder and Raw Tactile (Welch's *t* on per-evaluation-seed
-means, *t* = 14.91): both receive identical 6D contact forces, differing only in
-whether the policy consumes the raw vector or the pre-trained latent — so the
-benefit comes from the *representation*, not from additional information. Across
+means, *t* = 14.91). Across
 independent training runs the ordering never inverts (weakest Encoder run 90.74%
 strongest Raw Tactile run 85.37%).
 
