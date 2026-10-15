@@ -278,10 +278,10 @@ original notices.
 If you use this code, please cite our paper:
 
 ```bibtex
-@inproceedings{TODO_bibkey,
-  title     = {Task-Aligned Tactile Representation Learning for Robotic Manipulation},
-  author    = {Min Joong Kim, Zhengrong Ling, Yajing Shen},
-  booktitle = {TODO},
+@inproceedings{kim2026taskaligned,
+  title     = {{Task-Aligned Tactile Representation Learning for Robotic Manipulation}},
+  author    = {Min Joong Kim and Zhengrong Ling and Yajing Shen},
+  booktitle = {IEEE International Conference on Robotics and Biomimetics (ROBIO)},
   year      = {2026}
 }
 ```
