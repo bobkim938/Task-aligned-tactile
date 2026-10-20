@@ -98,19 +98,7 @@ data/encoder_pretraining/     Expert-rollout pre-training data (.h5; Hugging Fac
 data/v2/                      Deployment records (.npz) read by the analysis scripts
 checkpoints/                  Final encoder + policy checkpoints
 results/                      Evaluation and latent space analysis results
-```
-
-## Hyperparameters
-
-| Symbol            | Value           | Meaning                                        |
-| ----------------- | --------------- | ---------------------------------------------- |
-| `T`               | 16              | Tactile history window (frames)                |
-| `d`               | 6               | Tactile signal dimension (2 × 3D contact force)|
-| `d_z`             | 16              | Latent dimension                               |
-| `m`               | 0.5             | Hinge margin on the latent step distance       |
-| `β` (`--w-temporal`) | 0.5          | Weight on the temporal-consistency term        |
-| `λ`               | (1, 2, 1, 0.5, 0.3) | Head weights: contact, symmetry, stability, phase, magnitude |
-| epochs / batch / lr | 30 / 512 / 3e-4 | Encoder pre-training                         |
+```                    
 
 ## Installation
 Requires an NVIDIA GPU (simulator running on GPU PhysX) and Python ≥ 3.10
@@ -153,7 +141,7 @@ python tactile_encoder/train_tactile_encoder.py \
         --output-dir runs/tactile_encoder_v2 \
         --epochs 30 \
         --batch-size 512 \
-        --lr 3e-4 \
+        --lr 1e-3 \
         --w-temporal 0.5
 # produces the hinge encoder; set --w-temporal 0 for the no-hinge ablation
 ```
@@ -166,10 +154,17 @@ python tactile_encoder/analyze_encoder_data.py \
     --data-dir data/encoder_pretraining --window-size 16
 ```
 
-### 2. Train the ablation policies *(optional; checkpoints shipped)*
+### 2. Train the ablation policies
 
-**Primary training run (seed 4796)** — the four observation conditions reported
-in the main table. Only `--exp-name` differs between them:
+The observation condition is set with `--experiment-mode`:
+ 
+| `--experiment-mode` | Paper condition | Checkpoint name |
+|---|---|---|
+| `oracle` | Oracle | `policy_oracle` |
+| `visual_encoder` | Encoder (ours) | `policy_encoder` |
+| `visual_raw_tact` | Raw Tactile | `policy_raw_tactile` |
+| `visual_raw_tact_stack` | Raw Tactile Stack | `policy_raw_tactile_stack` |
+| `visual_only` | Visual-only | `policy_visual_only` |
 
 ```bash
 COMMON="--env_id=PickAndPlaceYCBToTray-v1 --num-envs 4096 --num-steps 16 \
@@ -177,7 +172,6 @@ COMMON="--env_id=PickAndPlaceYCBToTray-v1 --num-envs 4096 --num-steps 16 \
         --num-minibatches 32 --total-timesteps 35000000 --gamma 0.93 \
         --track --capture-video --save-model"
 
-```bash
 # Training seed 4796
 python training/ppo.py $COMMON --seed 4796 --experiment-mode oracle --exp-name policy_oracle
 python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_encoder --exp-name policy_encoder
@@ -195,7 +189,7 @@ for s in 1 4; do
 done
 ```
 
-### 3. Evaluate + collect deployment data *(optional; .npz shipped)*
+### 3. Evaluate
 
 ```bash
 python evaluation/evaluation.py                      # all 13 runs; resumes if interrupted
@@ -205,7 +199,7 @@ python evaluation/per_object_runs.py --object wrench # adjustable-wrench example
 
 Raw Output & Reproducibility: Every episode's details (condition, evaluation seed, object, episode, success) are saved to results/downstream_performance/multiseed_eval_all_raw.csv so all stats can be recomputed from scratch.
 
-### 4. Generate numbers and statistics *(uses shipped checkpoints + data)*
+### 4. Collect Deployment Data && Generate numbers and statistics 
 
 ```bash
 # Deployment records (1,000 episodes each) -> data/v2 (hinge) and data/v1 (no hinge)
@@ -222,7 +216,7 @@ python analysis/probe_grasp_outcome.py
 python analysis/probe_transport_functional.py 
 ```
 
-Every figure script also writes its underlying data as `.csv` under `results/`, so
+The above figure script also writes its underlying data as `.csv` under `results/`, so
 plots can be regenerated in any tool without rerunning the pipeline.
 
 ## Method notes
@@ -244,24 +238,66 @@ plots can be regenerated in any tool without rerunning the pipeline.
   step-distance ratio preserved, 8.8× → 10.7×) because the gate never penalizes
   them and the auxiliary heads require phase-distinct latents — structure an
   always-on L2 penalty would erode.
-- **Statistics.** All multi-seed, per-object, and per-category significance tests
-  use per-evaluation-seed success rates, never episode-level tests, which would
-  treat clustered episodes as independent. Welch's *t* is used for unpaired
-  comparisons and a paired *t* where evaluation seeds are matched across
-  conditions, with Mann–Whitney *U* reported as a nonparametric confirmation.
-  Across-training-run comparisons use the training run as the unit of analysis
-  and are reported separately.
+- **Statistics.** Success rates are calculated separately for each evaluation seed (620 episodes; 10 per object). Each training run is summarized by the mean $\pm$ SD across its 10 evaluation seeds. For between-condition comparisons, training runs are the unit of analysis; we report the mean and range of the run-level means. Per-object and per-category success rates use the same per-seed aggregation. Success–failure comparisons of force and latent statistics—grasp asymmetry and transport $\| \Delta z_t \|$—use two-sided Mann–Whitney *U* tests on per-episode values.
+
+## Implementation Details
+<details>
+<summary><b>Encoder, auxiliary heads, and labels</b></summary>
+
+**Encoder (29.6k parameters).** The encoder takes a smoothed force window of shape 16 × 6. It applies three Conv1d → LayerNorm → GELU blocks with 32, 64, and 64 channels, respectively. Each convolution uses a kernel size of 3 and padding of 1. After temporal mean pooling, a Linear(64, 64) → LayerNorm → GELU block produces the 64-dimensional representation h<sub>t</sub>. A final Linear(64, 16) layer produces z<sub>t</sub>.
+
+The auxiliary heads operate on h<sub>t</sub> and use small MLPs with dimensions 64 → 32 → output, except for the force-magnitude head, which uses 64 → 16 → 1. All auxiliary heads are discarded after pre-training.
+
+| Head / objective | Target at step t | Loss | Weight |
+|---|---|---|---|
+| Contact | Simulator grasp state, determined by the ManiSkill grasp check | BCE with a positive-class weight of 0.24 | 1 |
+| Asymmetry  | Absolute difference between the raw left and right force norms, divided by their sum | MSE on a sigmoid output; contact steps only | 2 |
+| Stability | 1 if the object remains grasped from t through t + 14, inclusive (a 15-step horizon); 0 otherwise | Focal loss (α = 0.25, γ = 2); contact steps only | 1 |
+| Phase | Simulator-derived phase: free, grasp (lifted < 3 cm), transport (lifted ≥ 3 cm), or post-slip (released after a grasp) | Cross-entropy | 0.5 |
+| Force magnitude | log(1 + ‖x<sup>raw</sup><sub>t</sub>‖) / 6.5 | MSE | 0.3 |
+| Temporal hinge | Consecutive windows in the same phase, with margin m = 0.5 | Squared hinge loss | β = 0.5 |
+
+**Class balance.** 80.6% of timesteps are in contact (`analysis/pretraining_data/class_balance_report.txt`). Only 5.2% of grasped timesteps are unstable; this imbalance limits the stability head’s F1 score (approximately 0.43). The phase distribution is 15.9% free, 30.9% grasp, 49.7% transport, and 3.5% post-slip. The rejected slip target has a positive rate of 3.9% and achieves an F1 score of 0.09 using a 16-frame window (`temporal_discriminability.txt`).
+
+Contact, phase, and stability labels rely on privileged simulator state. These labels are required only for offline pre-training.
+</details>
+
+<details>
+<summary><b>Pre-training</b></summary>
+
+- **Data:** Training data are collected from an oracle-mode PPO expert (checkpoints/dataGen_policy.pt) using deterministic actions under three conditions: clean (200 batches), action noise (σ = 0.15; 83 batches), and low friction (μ = 0.3; 50 batches). Each batch contains 256 parallel episodes of 100 steps, yielding 8,524,800 timesteps in total.
+
+- **Samples:** A sample is constructed at every episode step t ≥ 16 and paired with the window ending at t − 1 for the temporal hinge loss. Trajectories are split into training and validation sets at a 90/10 ratio using seed 42.
+
+- **Optimization:** Both encoders are trained for 30 epochs with AdamW, a weight decay of $1 × 10^-5$, a batch size of 512, and gradient-norm clipping at 1.0. The learning rate follows a cosine schedule that decays to zero over the full training run, starting at $1 × 10^-3$ for the hinge encoder and $3 × 10^-4$ for the no-hinge encoder, as recorded in their respective train_log.csv files. The checkpoint with the lowest validation loss is saved as best_encoder.pt.
+</details>
+
+<details>
+<summary><b>PPO</b></summary>
+
+| Setting | Value |
+|---|---|
+| Parallel environments × rollout length | 4096 × 16 (batch 65,536) |
+| Minibatches × update epochs | 32 (2,048 each) × 8 |
+| Total environment steps | 35M (534 iterations) |
+| Discount γ / GAE λ | 0.93 / 0.9 |
+| Optimizer | Adam, learning rate 3e-4 (constant), ε 1e-5 |
+| Clip / value coefficient / entropy coefficient | 0.2 / 0.5 / 0 |
+| Max gradient norm / target KL | 0.5 / 0.1 |
+| Advantage normalization | on |
+| Networks | separate actor and critic MLPs, 3 × 256, tanh, orthogonal init |
+| Policy | Gaussian, state-independent log-std (initialized at −0.5) |
+| Checkpoint | final (`final_ckpt.pt`), evaluated with deterministic (mean) actions |
+ 
+The observation modality is the only difference between conditions.
+</details>
 
 ## Checkpoint naming
 
-- `checkpoints/tactile_encoder_hinge/best_encoder.pt` — full encoder with the hinge loss
-  (used for all downstream policies).
-- `checkpoints/tactile_encoder_no_hinge/best_encoder.pt` — ablation encoder without the
-  temporal loss.
-- `checkpoints/policy_{oracle,encoder,raw_tactile,visual_only}.pt` — the four
-  ablation policies from seed 4796.
-- `checkpoints/policy_{encoder,raw_tactile,visual_only}_seed{1,4}.pt` — the
-  robustness training runs.
+- policy_{oracle,encoder,raw_tactile,raw_tactile_stack,visual_only}.pt — seed 4796
+- policy_{oracle,visual_only}_seed1.pt, policy_{encoder,raw_tactile,raw_tactile_stack}_seed{1,4}.pt — retraining runs
+- policy_encoder_no_hinge.pt — policy on the no-hinge encoder (hinge ablation, step 4)
+- dataGen_policy.pt — oracle expert used to collect pre-training data
 
 ## Acknowledgments
 
