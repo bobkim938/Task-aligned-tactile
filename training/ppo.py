@@ -7,7 +7,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
 
 import gymnasium as gym
 import numpy as np
@@ -60,6 +60,8 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "PickCube-v1"
     """the id of the environment"""
+    experiment_mode: Optional[Literal["oracle", "visual_only", "visual_raw_tact", "visual_raw_tact_stack", "visual_encoder"]] = None
+    """observation condition; overrides EXPERIMENT_MODE in env/PickAndPlaceYCBToTray.py (None keeps the value set there)"""
     total_timesteps: int = 10000000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
@@ -203,6 +205,9 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
+    if args.experiment_mode is not None:
+        env.PickAndPlaceYCBToTray.EXPERIMENT_MODE = args.experiment_mode
+    print(f"EXPERIMENT_MODE={env.PickAndPlaceYCBToTray.EXPERIMENT_MODE}")
     env_kwargs = dict(obs_mode="state", render_mode="rgb_array", sim_backend="physx_cuda")
     if args.control_mode is not None:
         env_kwargs["control_mode"] = args.control_mode

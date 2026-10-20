@@ -1,0 +1,6 @@
+condition,seed4796_success_pct,seed1_success_pct,seed4_success_pct,mean_success_pct,std_success_pct,n_train_runs
+Oracle,81.00,82.00,,81.50,0.71,2
+Visual-only,1.00,0.00,,0.50,0.71,2
+Raw Tactile,25.00,40.00,37.00,34.00,7.94,3
+Raw Tactile Stack,58.00,33.00,43.00,44.67,12.58,3
+Encoder (Ours),71.00,70.00,66.00,69.00,2.65,3

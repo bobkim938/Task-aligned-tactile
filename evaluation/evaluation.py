@@ -1,3 +1,27 @@
+"""
+Multi-seed evaluation script for trained ablation policies (primary and robustness runs).
+
+For each (condition, seed, object) combination, this script executes 10 parallel episodes 
+and records per-episode success, following the protocol of the original `eval_multiseed.py`.
+
+Condition Tagging Convention:
+    - Bare mode name: Primary training run (default seed 4796).
+    - `_seed<N>` suffix: Robustness training run (EXPERIMENT_MODE is the tag with the suffix stripped).
+
+Usage:
+    $ python evaluation/evaluation.py
+    $ python evaluation/evaluation.py --only oracle_seed1 visual_raw_tact_stack_seed4
+
+Resuming:
+    (condition, seed) pairs already present in the raw CSV are automatically skipped.
+
+Outputs (saved to `results/downstream_performance/`):
+    - multiseed_eval_all_raw.csv: One row per (condition, seed, object, env_idx).
+    - multiseed_eval_all_summary.csv: Per-condition mean +/- standard deviation across seeds.
+    - stdout: Headline performance table.
+"""
+
+import argparse
 import csv
 import os
 import sys
@@ -9,7 +33,7 @@ import numpy as np
 import torch
 
 # Add project root to sys.path BEFORE importing project modules
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import env.PickAndPlaceYCBToTray as env_module
@@ -22,21 +46,48 @@ from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv
 # CONFIG -- edit these
 # =============================================================================
 
+CKPT_DIR = PROJECT_ROOT / "checkpoints"
+
 CHECKPOINTS = {
-    # "oracle":          str(PROJECT_ROOT / "checkpoints" / "policy_oracle.pt"),
-    "visual_only_seed1":     str(PROJECT_ROOT / "checkpoints" / "policy_visual_only_seed1.pt"),
-    "visual_raw_tact_seed1": str(PROJECT_ROOT / "checkpoints" / "policy_raw_tactile_seed1.pt"),
-    "visual_encoder_seed1":  str(PROJECT_ROOT / "checkpoints" / "policy_encoder_seed1.pt"),
-    "visual_raw_tact_seed4": str(PROJECT_ROOT / "checkpoints" / "policy_raw_tactile_seed4.pt"),
-    "visual_encoder_seed4":  str(PROJECT_ROOT / "checkpoints" / "policy_encoder_seed4.pt"),
+    # primary training run (seed 4796)
+    "oracle":                      str(CKPT_DIR / "policy_oracle.pt"),
+    "visual_only":                 str(CKPT_DIR / "policy_visual_only.pt"),
+    "visual_raw_tact":             str(CKPT_DIR / "policy_raw_tactile.pt"),
+    "visual_raw_tact_stack":       str(CKPT_DIR / "policy_raw_tactile_stack.pt"),
+    "visual_encoder":              str(CKPT_DIR / "policy_encoder.pt"),
+    # robustness training runs
+    "oracle_seed1":                str(CKPT_DIR / "policy_oracle_seed1.pt"),
+    "visual_only_seed1":           str(CKPT_DIR / "policy_visual_only_seed1.pt"),
+    "visual_raw_tact_seed1":       str(CKPT_DIR / "policy_raw_tactile_seed1.pt"),
+    "visual_raw_tact_seed4":       str(CKPT_DIR / "policy_raw_tactile_seed4.pt"),
+    "visual_raw_tact_stack_seed1": str(CKPT_DIR / "policy_raw_tactile_stack_seed1.pt"),
+    "visual_raw_tact_stack_seed4": str(CKPT_DIR / "policy_raw_tactile_stack_seed4.pt"),
+    "visual_encoder_seed1":        str(CKPT_DIR / "policy_encoder_seed1.pt"),
+    "visual_encoder_seed4":        str(CKPT_DIR / "policy_encoder_seed4.pt"),
+}
+
+# Policy input dim per mode; every checkpoint is checked against this before any eval
+OBS_DIM = {
+    "oracle": 61,
+    "visual_only": 51,
+    "visual_raw_tact": 57,
+    "visual_raw_tact_stack": 147,
+    "visual_encoder": 67,
 }
 
 SEEDS = [42, 123, 456, 789, 1000, 1234, 2025, 7777, 31415, 65535]
 NUM_PARALLEL_ENVS = 10        # episodes per (condition, seed, object)
 NUM_EVAL_STEPS = 100          # match env's max_episode_steps
-OUTPUT_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = PROJECT_ROOT / "results" / "downstream_performance"
+RAW_CSV = OUTPUT_DIR / "multiseed_eval_all_raw.csv"
+SUMMARY_CSV = OUTPUT_DIR / "multiseed_eval_all_summary.csv"
 
 ROBOT_UID = "panda_v2"
+
+
+def mode_of(condition):
+    """'visual_raw_tact_stack_seed4' -> 'visual_raw_tact_stack'."""
+    return condition.split("_seed")[0]
 
 
 # =============================================================================
@@ -51,8 +102,7 @@ def evaluate_seed_condition(condition, seed, checkpoint_path, device):
     list of dict, one row per (object, env_idx), with keys:
         condition, seed, model_id, env_idx, success
     """
-    
-    env_module.EXPERIMENT_MODE = condition.split("_seed")[0]
+    env_module.EXPERIMENT_MODE = mode_of(condition)
 
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -144,14 +194,26 @@ def aggregate_summary(all_rows):
     return summary
 
 
+def read_raw_csv(path):
+    if not path.exists():
+        return []
+    with open(path, newline="") as f:
+        return [
+            dict(r, seed=int(r["seed"]), env_idx=int(r["env_idx"]), success=int(r["success"]))
+            for r in csv.DictReader(f)
+        ]
+
+
 def write_raw_csv(rows, path):
     if not rows:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="") as f:
+    tmp = path.with_suffix(".csv.tmp")
+    with open(tmp, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
+    os.replace(tmp, path)  # atomic, so an interrupted write never truncates finished results
 
 
 def write_summary_csv(summary, path):
@@ -173,10 +235,10 @@ def write_summary_csv(summary, path):
 def print_headline_table(summary):
     print()
     print("=" * 72)
-    print(f"{'Condition':<22} {'Mean (%)':>10} {'Std (%)':>10} {'N seeds':>10}")
+    print(f"{'Condition':<30} {'Mean (%)':>10} {'Std (%)':>10} {'N seeds':>10}")
     print("-" * 72)
     for cond, stats in summary.items():
-        print(f"{cond:<22} {stats['mean']:>10.2f} {stats['std']:>10.2f} "
+        print(f"{cond:<30} {stats['mean']:>10.2f} {stats['std']:>10.2f} "
               f"{len(stats['per_seed']):>10d}")
     print("=" * 72)
 
@@ -186,42 +248,63 @@ def print_headline_table(summary):
 # =============================================================================
 
 def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("--only", nargs="+", choices=list(CHECKPOINTS), default=None,
+                    help="evaluate only these conditions (default: all in CHECKPOINTS)")
+    args = ap.parse_args()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Pre-flight: skip missing checkpoints, and fail now (not hours in) on a
+    # checkpoint whose input dim does not match its condition's mode
     active_conditions = []
-    for cond, ckpt in CHECKPOINTS.items():
-        if ckpt is None:
-            print(f"[skip] {cond}: no checkpoint set")
-            continue
+    for cond in args.only or list(CHECKPOINTS):
+        ckpt = CHECKPOINTS[cond]
         if not os.path.exists(ckpt):
             print(f"[skip] {cond}: checkpoint not found at {ckpt}")
             continue
+        in_dim = torch.load(ckpt, map_location="cpu")["critic.0.weight"].shape[1]
+        expected = OBS_DIM[mode_of(cond)]
+        if in_dim != expected:
+            sys.exit(f"[fatal] {cond}: {ckpt} has input dim {in_dim}, "
+                     f"mode '{mode_of(cond)}' expects {expected}")
         active_conditions.append((cond, ckpt))
 
     if not active_conditions:
         print("No valid checkpoints. Edit CHECKPOINTS at the top of this file.")
         sys.exit(1)
 
+    # Resume from an earlier, interrupted invocation
+    all_rows = read_raw_csv(RAW_CSV)
+    done = {(r["condition"], r["seed"]) for r in all_rows}
+    todo = [(c, s) for c, _ in active_conditions for s in SEEDS if (c, s) not in done]
+
     print(f"Device      : {device}")
     print(f"Robot       : {ROBOT_UID}")
     print(f"Conditions  : {[c for c, _ in active_conditions]}")
     print(f"Seeds       : {SEEDS}")
-    print(f"Output dir  : {OUTPUT_DIR.resolve()}")
+    print(f"Raw CSV     : {RAW_CSV}")
+    if done:
+        print(f"Resuming    : {len(done)} (condition, seed) pairs already done, {len(todo)} to go")
     print()
 
-    all_rows = []
-    raw_path = OUTPUT_DIR / "multiseed_eval_raw.csv"
     t_start = time.time()
 
     for cond, ckpt in active_conditions:
+        seeds = [s for s in SEEDS if (cond, s) not in done]
+        if not seeds:
+            print(f"\n### Condition: {cond}  (already complete)")
+            continue
         print(f"\n### Condition: {cond}  ({ckpt})")
-        for seed in SEEDS:
+        for seed in seeds:
             t_seed = time.time()
             rows = evaluate_seed_condition(cond, seed, ckpt, device)
             all_rows.extend(rows)
 
-            write_raw_csv(all_rows, raw_path)
+            write_raw_csv(all_rows, RAW_CSV)
 
             # Per-seed quick summary
             successes = [r["success"] for r in rows]
@@ -234,13 +317,13 @@ def main():
 
     # Final aggregation
     summary = aggregate_summary(all_rows)
-    write_summary_csv(summary, OUTPUT_DIR / "multiseed_eval_summary.csv")
+    write_summary_csv(summary, SUMMARY_CSV)
     print_headline_table(summary)
 
     total_elapsed = (time.time() - t_start) / 60.0
     print(f"\nTotal wall-clock: {total_elapsed:.1f} min")
-    print(f"Raw results    : {raw_path.resolve()}")
-    print(f"Summary        : {(OUTPUT_DIR / 'multiseed_eval_summary.csv').resolve()}")
+    print(f"Raw results    : {RAW_CSV}")
+    print(f"Summary        : {SUMMARY_CSV}")
 
 
 if __name__ == "__main__":

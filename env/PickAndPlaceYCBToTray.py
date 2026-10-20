@@ -3,10 +3,12 @@ PickAndPlaceYCBToTray-v1  —  Visual-proxy observation model for tactile ablati
 =============================================================================================
 
 Ablation rows (toggle via the EXPERIMENT_MODE variable below):
-    "oracle"          — true obj_pose + is_grasped (upper bound)
-    "visual_only"     — smooth occlusion + gripper_closed, no tactile
-    "visual_raw_tact" — smooth occlusion + gripper_closed + 6-D smoothed force
-    "visual_encoder"  — smooth occlusion + gripper_closed + learned z_t (16-dim)
+    "oracle"                — true obj_pose + is_grasped (upper bound)
+    "visual_only"           — smooth occlusion + gripper_closed, no tactile
+    "visual_raw_tact"       — smooth occlusion + gripper_closed + 6-D smoothed force
+    "visual_raw_tact_stack" — smooth occlusion + gripper_closed + 16-frame stack of 6-D smoothed force
+                              (96-dim; the encoder's input window, without the encoder)
+    "visual_encoder"        — smooth occlusion + gripper_closed + learned z_t (16-dim)
 
 All rows share the same reward function, success criterion, and evaluation logic.
 Only the observation dict changes.
@@ -40,7 +42,7 @@ WARNED_ONCE = False
 # ============================================================================
 # EXPERIMENT CONFIGURATION
 # ============================================================================
-EXPERIMENT_MODE = "visual_encoder"  # "oracle" | "visual_only" | "visual_raw_tact" | "visual_encoder"
+EXPERIMENT_MODE = "visual_raw_tact_stack"  # "oracle" | "visual_only" | "visual_raw_tact" | "visual_raw_tact_stack" | "visual_encoder"
 
 # Path to the pre-trained tactile encoder checkpoint (only used when mode = "visual_encoder")
 ENCODER_CHECKPOINT = os.path.join(
@@ -52,6 +54,9 @@ ENCODER_CHECKPOINT = os.path.join(
 ENCODER_WINDOW_SIZE = 16
 ENCODER_Z_DIM = 16
 ENCODER_HIDDEN_DIM = 64
+
+# Modes that keep the ENCODER_WINDOW_SIZE-frame force history buffer
+TEMPORAL_MODES = ("visual_encoder", "visual_raw_tact_stack")
 
 
 @register_env("PickAndPlaceYCBToTray-v1", max_episode_steps=100, asset_download_ids=["ycb"])
@@ -295,8 +300,8 @@ class PickAndPlaceYCBToTrayEnv(BaseEnv):
             self._obj_friction_values, device=self.device
         )
 
-        # ── Force history buffer for encoder (visual_encoder mode) ──
-        if EXPERIMENT_MODE == "visual_encoder":
+        # force history buffer (visual_encoder / visual_raw_tact_stack modes)
+        if EXPERIMENT_MODE in TEMPORAL_MODES:
             self._force_history = torch.zeros(
                 (self.num_envs, ENCODER_WINDOW_SIZE, 6), device=self.device
             )
@@ -341,7 +346,7 @@ class PickAndPlaceYCBToTrayEnv(BaseEnv):
             self._vision_occluded[env_idx] = False
 
             # Reset force history buffer for resetting envs
-            if EXPERIMENT_MODE == "visual_encoder":
+            if EXPERIMENT_MODE in TEMPORAL_MODES:
                 self._force_history[env_idx] = 0.0
 
             # --- Object placement ---
@@ -500,14 +505,19 @@ class PickAndPlaceYCBToTrayEnv(BaseEnv):
                 gripper_closed=gripper_closed,
             )
 
-            if mode == "visual_raw_tact":
-                obs["tactile"] = tactile_normalized
-
-            elif mode == "visual_encoder":
-                # ── Shift force history buffer and insert new reading ──
+            # Shift force history buffer and insert new reading
+            if mode in TEMPORAL_MODES:
                 self._force_history[:, :-1] = self._force_history[:, 1:].clone()
                 self._force_history[:, -1] = tactile_normalized
 
+            if mode == "visual_raw_tact":
+                obs["tactile"] = tactile_normalized
+
+            elif mode == "visual_raw_tact_stack":
+                # Flattened oldest -> newest
+                obs["tactile_stack"] = self._force_history.reshape(self.num_envs, -1).clone()  # [b, 96]
+
+            elif mode == "visual_encoder":
                 # ── Encoder forward pass (frozen, no gradients) ──
                 with torch.no_grad():
                     _h_t, z_t = self._tactile_encoder(self._force_history)
