@@ -32,7 +32,6 @@ import gymnasium as gym
 import numpy as np
 import torch
 
-# Add project root to sys.path BEFORE importing project modules
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -42,22 +41,20 @@ from mani_skill.utils.wrappers.flatten import FlattenActionSpaceWrapper
 from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv
 
 
-# =============================================================================
-# CONFIG -- edit these
-# =============================================================================
-
 CKPT_DIR = PROJECT_ROOT / "checkpoints"
 
 CHECKPOINTS = {
-    # primary training run (seed 4796)
+    # seed 4796
     "oracle":                      str(CKPT_DIR / "policy_oracle.pt"),
     "visual_only":                 str(CKPT_DIR / "policy_visual_only.pt"),
     "visual_raw_tact":             str(CKPT_DIR / "policy_raw_tactile.pt"),
     "visual_raw_tact_stack":       str(CKPT_DIR / "policy_raw_tactile_stack.pt"),
     "visual_encoder":              str(CKPT_DIR / "policy_encoder.pt"),
-    # robustness training runs
+    # other training seeds
     "oracle_seed1":                str(CKPT_DIR / "policy_oracle_seed1.pt"),
+    "oracle_seed4":                str(CKPT_DIR / "policy_oracle_seed4.pt"),
     "visual_only_seed1":           str(CKPT_DIR / "policy_visual_only_seed1.pt"),
+    "visual_only_seed4":           str(CKPT_DIR / "policy_visual_only_seed4.pt"),
     "visual_raw_tact_seed1":       str(CKPT_DIR / "policy_raw_tactile_seed1.pt"),
     "visual_raw_tact_seed4":       str(CKPT_DIR / "policy_raw_tactile_seed4.pt"),
     "visual_raw_tact_stack_seed1": str(CKPT_DIR / "policy_raw_tactile_stack_seed1.pt"),
@@ -258,8 +255,6 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Pre-flight: skip missing checkpoints, and fail now (not hours in) on a
-    # checkpoint whose input dim does not match its condition's mode
     active_conditions = []
     for cond in args.only or list(CHECKPOINTS):
         ckpt = CHECKPOINTS[cond]
@@ -277,7 +272,7 @@ def main():
         print("No valid checkpoints. Edit CHECKPOINTS at the top of this file.")
         sys.exit(1)
 
-    # Resume from an earlier, interrupted invocation
+    # resume from an earlier, interrupted invocation
     all_rows = read_raw_csv(RAW_CSV)
     done = {(r["condition"], r["seed"]) for r in all_rows}
     todo = [(c, s) for c, _ in active_conditions for s in SEEDS if (c, s) not in done]

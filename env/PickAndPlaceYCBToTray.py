@@ -42,7 +42,7 @@ WARNED_ONCE = False
 # ============================================================================
 # EXPERIMENT CONFIGURATION
 # ============================================================================
-EXPERIMENT_MODE = "visual_raw_tact_stack"  # "oracle" | "visual_only" | "visual_raw_tact" | "visual_raw_tact_stack" | "visual_encoder"
+EXPERIMENT_MODE = "visual_only"  # "oracle" | "visual_only" | "visual_raw_tact" | "visual_raw_tact_stack" | "visual_encoder"
 
 # Path to the pre-trained tactile encoder checkpoint (only used when mode = "visual_encoder")
 ENCODER_CHECKPOINT = os.path.join(

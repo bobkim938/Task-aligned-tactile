@@ -5,12 +5,18 @@ Oracle (seed4796),Irregular,96.10,0.98,10,29
 Oracle (seed1),Symmetric/Uniform,96.14,1.46,10,22
 Oracle (seed1),Thin/Elongated,88.36,4.90,10,11
 Oracle (seed1),Irregular,96.00,1.36,10,29
+Oracle (seed4),Symmetric/Uniform,94.77,0.94,10,22
+Oracle (seed4),Thin/Elongated,90.00,4.00,10,11
+Oracle (seed4),Irregular,94.17,1.76,10,29
 Visual-only (seed4796),Symmetric/Uniform,89.27,1.59,10,22
 Visual-only (seed4796),Thin/Elongated,16.45,2.25,10,11
 Visual-only (seed4796),Irregular,77.48,2.72,10,29
 Visual-only (seed1),Symmetric/Uniform,89.77,0.94,10,22
 Visual-only (seed1),Thin/Elongated,14.27,2.57,10,11
 Visual-only (seed1),Irregular,64.34,3.37,10,29
+Visual-only (seed4),Symmetric/Uniform,80.82,1.74,10,22
+Visual-only (seed4),Thin/Elongated,1.36,1.37,10,11
+Visual-only (seed4),Irregular,41.34,1.68,10,29
 Raw Tactile (seed4796),Symmetric/Uniform,88.45,1.27,10,22
 Raw Tactile (seed4796),Thin/Elongated,62.36,7.58,10,11
 Raw Tactile (seed4796),Irregular,79.03,2.56,10,29
@@ -38,12 +44,12 @@ Encoder (Ours) (seed1),Irregular,92.66,1.25,10,29
 Encoder (Ours) (seed4),Symmetric/Uniform,94.86,1.39,10,22
 Encoder (Ours) (seed4),Thin/Elongated,84.18,4.37,10,11
 Encoder (Ours) (seed4),Irregular,93.55,1.88,10,29
-Oracle (pooled),Symmetric/Uniform,96.11,0.03,2,
-Oracle (pooled),Thin/Elongated,89.32,1.35,2,
-Oracle (pooled),Irregular,96.05,0.07,2,
-Visual-only (pooled),Symmetric/Uniform,89.52,0.35,2,
-Visual-only (pooled),Thin/Elongated,15.36,1.54,2,
-Visual-only (pooled),Irregular,70.91,9.29,2,
+Oracle (pooled),Symmetric/Uniform,95.67,0.77,3,
+Oracle (pooled),Thin/Elongated,89.55,1.03,3,
+Oracle (pooled),Irregular,95.43,1.09,3,
+Visual-only (pooled),Symmetric/Uniform,86.62,5.03,3,
+Visual-only (pooled),Thin/Elongated,10.70,8.16,3,
+Visual-only (pooled),Irregular,61.06,18.29,3,
 Raw Tactile (pooled),Symmetric/Uniform,90.42,1.85,3,
 Raw Tactile (pooled),Thin/Elongated,73.30,9.48,3,
 Raw Tactile (pooled),Irregular,80.41,1.47,3,
