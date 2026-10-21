@@ -30,7 +30,7 @@ forces into a representation the downstream policy can act on.
    margin penalty that compresses within-phase latent oscillation while leaving
    phase transitions unpenalized, keeping the representation stable enough for RL
    without flattening the phase information the policy needs.
-3. **Frozen Deployment** - After pre-training, the heads are discarded, and the encoder is  frozen. PPO trains the policy solely on z<sub>t</sub>, requiring no auxiliary labels during policy learning.
+3. **Frozen Deployment** - After pre-training, the heads are discarded, and the encoder is frozen. PPO trains the policy solely on z<sub>t</sub>, requiring no auxiliary labels during policy learning.
 
 ## Key results
 
@@ -46,8 +46,8 @@ Policy success across **N** independent PPO training runs per condition, evaluat
 
 - **Gap Closure:** The Encoder recovers 88% of the performance gap between Visual-only and Oracle baselines (measured from run means).
 - Every Encoder run outperforms every run of the raw-tactile variants - the lowest-performing Encoder run ($90.71\%$) comfortably exceeds the highest raw-tactile run ($85.16\%$).
-- **Learned Structure vs Temporal Context:** Temporal context alone is insufficient. Extending the policy's input to match the Encoder's 16-frame window leaves Raw Tactile performance unchanged ($82.7\%$ in both cases), confirming that performance gains stem from the learned representation rather than history depth.
-- **Reproducibility:** The Encoder achieves the highest reproducibility across retraining, exhibiting a standard deviation across runs of just $0.85$ points, compared to $2.91$ and $2.12$ points for the baselines.
+- **Learned Structure vs Temporal Context:** Temporal context alone is insufficient. Extending the policy's input to match the Encoder's 16-frame window leaves Raw Tactile performance unchanged ($82.7\%$ in both cases), indicating that performance gains stem from the learned representation rather than history depth.
+- **Reproducibility:** Among the tactile variants, the Encoder achieves the highest reproducibility across retraining, exhibiting a standard deviation across runs of just $0.85$ points, compared to $2.91$ and $2.12$ points for the baselines.
 
 <details>
 <summary><b>Every training run</b></summary>
