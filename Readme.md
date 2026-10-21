@@ -1,7 +1,6 @@
 # Task-Aligned Tactile Representation Learning for Robotic Manipulation
 
-**IEEE ROBIO 2026** · Min Joong Kim\*, Zhengrong Ling\*, Yajing Shen
-The Hong Kong University of Science and Technology <br>\* Equal contribution
+**IEEE ROBIO 2026** · Min Joong Kim\*, Zhengrong Ling\*, Yajing Shen · The Hong Kong University of Science and Technology <br>\* Equal contribution
 
 <p align="center">
   <img src="assets/task_description.png" width="100%" alt="Grasp-transfer-place task: free-space, approach, grasp, transport through the waypoint, place on the tray">
@@ -159,11 +158,11 @@ The observation condition is set with `--experiment-mode`:
  
 | `--experiment-mode` | Paper condition | Checkpoint name |
 |---|---|---|
-| `oracle` | Oracle | `policy_oracle` |
-| `visual_encoder` | Encoder (ours) | `policy_encoder` |
-| `visual_raw_tact` | Raw Tactile | `policy_raw_tactile` |
-| `visual_raw_tact_stack` | Raw Tactile Stack | `policy_raw_tactile_stack` |
-| `visual_only` | Visual-only | `policy_visual_only` |
+| `oracle` | Oracle | `policy_oracle_seed<N>` |
+| `visual_encoder` | Encoder (ours) | `policy_encoder_seed<N>` |
+| `visual_raw_tact` | Raw Tactile | `policy_raw_tactile_seed<N>` |
+| `visual_raw_tact_stack` | Raw Tactile Stack | `policy_raw_tactile_stack_seed<N>` |
+| `visual_only` | Visual-only | `policy_visual_only_seed<N>` |
 
 ```bash
 COMMON="--env_id=PickAndPlaceYCBToTray-v1 --num-envs 4096 --num-steps 16 \
@@ -171,15 +170,8 @@ COMMON="--env_id=PickAndPlaceYCBToTray-v1 --num-envs 4096 --num-steps 16 \
         --num-minibatches 32 --total-timesteps 35000000 --gamma 0.93 \
         --track --capture-video --save-model"
 
-# Training seed 4796
-python training/ppo.py $COMMON --seed 4796 --experiment-mode oracle --exp-name policy_oracle
-python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_encoder --exp-name policy_encoder
-python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_raw_tact --exp-name policy_raw_tactile
-python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_raw_tact_stack --exp-name policy_raw_tactile_stack
-python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_only --exp-name policy_visual_only
- 
-# Training seeds 1 and 4
-for s in 1 4; do
+# Training seeds 4796, 1 and 4
+for s in 4796 1 4; do
   python training/ppo.py $COMMON --seed $s --experiment-mode oracle --exp-name policy_oracle_seed$s
   python training/ppo.py $COMMON --seed $s --experiment-mode visual_only --exp-name policy_visual_only_seed$s
   python training/ppo.py $COMMON --seed $s --experiment-mode visual_encoder --exp-name policy_encoder_seed$s
@@ -202,7 +194,7 @@ Raw Output & Reproducibility: Every episode's details (condition, evaluation see
 
 ```bash
 # Deployment records (1,000 episodes each) -> data/v2 (hinge) and data/v1 (no hinge)
-python analysis/collect_.py --policy checkpoints/policy_encoder.pt \
+python analysis/collect_.py --policy checkpoints/policy_encoder_seed4796.pt \
     --encoder checkpoints/tactile_encoder_hinge/best_encoder.pt --tag v2 --num-episodes 1000 --seed-start 0
 python analysis/collect_.py --policy checkpoints/policy_encoder_no_hinge.pt \
     --encoder checkpoints/tactile_encoder_no_hinge/best_encoder.pt --tag v1 --num-episodes 1000 --seed-start 0
@@ -293,8 +285,7 @@ The observation modality is the only difference between conditions.
 
 ## Checkpoint naming
 
-- policy_{oracle,encoder,raw_tactile,raw_tactile_stack,visual_only}.pt - seed 4796
-- policy_{oracle,encoder,raw_tactile,raw_tactile_stack,visual_only}_seed{1,4}.pt - retraining runs
+- policy_{oracle,encoder,raw_tactile,raw_tactile_stack,visual_only}_seed{4796,1,4}.pt
 - policy_encoder_no_hinge.pt - policy on the no-hinge encoder (hinge ablation, step 4)
 - dataGen_policy.pt - oracle expert used to collect pre-training data
 

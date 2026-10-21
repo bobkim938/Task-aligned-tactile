@@ -15,7 +15,7 @@ Saves: data/figure_deployment/4_4_heldout/latent_records.npz
        data/figure_deployment/4_4_heldout/meta.json
 
 Usage:
-    python collect_latent_data_heldout.py --policy   checkpoints/policy_encoder.pt --encoder  checkpoints/tactile_encoder_hinge/best_encoder.pt --num-episodes 300
+    python collect_latent_data_heldout.py --policy   checkpoints/policy_encoder_seed4796.pt --encoder  checkpoints/tactile_encoder_hinge/best_encoder.pt --num-episodes 300
 """
 
 import argparse

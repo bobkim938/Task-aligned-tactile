@@ -45,11 +45,11 @@ CKPT_DIR = PROJECT_ROOT / "checkpoints"
 
 CHECKPOINTS = {
     # seed 4796
-    "oracle":                      str(CKPT_DIR / "policy_oracle.pt"),
-    "visual_only":                 str(CKPT_DIR / "policy_visual_only.pt"),
-    "visual_raw_tact":             str(CKPT_DIR / "policy_raw_tactile.pt"),
-    "visual_raw_tact_stack":       str(CKPT_DIR / "policy_raw_tactile_stack.pt"),
-    "visual_encoder":              str(CKPT_DIR / "policy_encoder.pt"),
+    "oracle":                      str(CKPT_DIR / "policy_oracle_seed4796.pt"),
+    "visual_only":                 str(CKPT_DIR / "policy_visual_only_seed4796.pt"),
+    "visual_raw_tact":             str(CKPT_DIR / "policy_raw_tactile_seed4796.pt"),
+    "visual_raw_tact_stack":       str(CKPT_DIR / "policy_raw_tactile_stack_seed4796.pt"),
+    "visual_encoder":              str(CKPT_DIR / "policy_encoder_seed4796.pt"),
     # other training seeds
     "oracle_seed1":                str(CKPT_DIR / "policy_oracle_seed1.pt"),
     "oracle_seed4":                str(CKPT_DIR / "policy_oracle_seed4.pt"),

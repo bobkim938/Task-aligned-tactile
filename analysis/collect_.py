@@ -6,13 +6,13 @@ are paired:
 
   # V1 (no-hinge encoder):
   python analysis/collect_.py \
-      --policy checkpoints/policy_encoder_v1.pt \
+      --policy checkpoints/policy_encoder_no_hinge.pt \
       --encoder checkpoints/tactile_encoder_no_hinge/best_encoder.pt \
       --tag v1 --num-episodes 1000 --seed-start 0
 
   # V2 (hinge encoder):
   python analysis/collect_.py \
-      --policy checkpoints/policy_encoder.pt \
+      --policy checkpoints/policy_encoder_seed4796.pt \
       --encoder checkpoints/tactile_encoder_hinge/best_encoder.pt \
       --tag v2 --num-episodes 1000 --seed-start 0
 
