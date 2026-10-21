@@ -38,13 +38,13 @@ Policy success across **N** independent PPO training runs per condition, evaluat
 
 | Condition | Tactile input to the policy | Success, mean (range) % | N |
 |---|---|---|---|
-| Oracle | current 6-D force, plus the true object pose and grasp flag | 94.88 (94.69–95.06) | 2 |
+| Oracle | current 6-D force, plus the true object pose and grasp flag | 94.47 (93.65–95.06) | 3 |
 | **Encoder (ours)** | 16-D latent of the last 16 force frames | **91.66 (90.71–92.35)** | 3 |
 | Raw Tactile | current 6-D force | 82.71 (79.42–84.97) | 3 |
 | Raw Tactile Stack | last 16 force frames, flattened (96-D) | 82.74 (81.21–85.16) | 3 |
-| Visual-only | none | 67.66 (64.48–70.84) | 2 |
+| Visual-only | none | 61.19 (48.26–70.84) | 3 |
 
-- **Gap Closure:** The Encoder recovers 88% of the performance gap between Visual-only and Oracle baselines (measured from run means).
+- **Gap Closure:** The Encoder recovers 92% of the performance gap between Visual-only and Oracle baselines (measured from run means).
 - Every Encoder run outperforms every run of the raw-tactile variants - the lowest-performing Encoder run ($90.71\%$) comfortably exceeds the highest raw-tactile run ($85.16\%$).
 - **Learned Structure vs Temporal Context:** Temporal context alone is insufficient. Extending the policy's input to match the Encoder's 16-frame window leaves Raw Tactile performance unchanged ($82.7\%$ in both cases), indicating that performance gains stem from the learned representation rather than history depth.
 - **Reproducibility:** Among the tactile variants, the Encoder achieves the highest reproducibility across retraining, exhibiting a standard deviation across runs of just $0.85$ points, compared to $2.91$ and $2.12$ points for the baselines.
@@ -56,6 +56,7 @@ Policy success across **N** independent PPO training runs per condition, evaluat
 |---|---|---|
 | Oracle | 4796 | 95.06 ± 0.94 |
 | Oracle | 1 | 94.69 ± 1.35 |
+| Oracle | 4 | 93.65 ± 1.09 |
 | Encoder (ours) | 4796 | 91.92 ± 1.31 |
 | Encoder (ours) | 1 | 90.71 ± 1.08 |
 | Encoder (ours) | 4 | 92.35 ± 0.85 |
@@ -67,6 +68,7 @@ Policy success across **N** independent PPO training runs per condition, evaluat
 | Raw Tactile Stack | 4 | 81.21 ± 1.01 |
 | Visual-only | 4796 | 70.84 ± 1.61 |
 | Visual-only | 1 | 64.48 ± 1.92 |
+| Visual-only | 4 | 48.26 ± 1.18 |
  
 Training seeds are matched across conditions
 </details>
@@ -75,9 +77,9 @@ Training seeds are matched across conditions
 Success by object category, mean $\pm$ SD across training runs (%):
 | Category | Oracle | Encoder (ours) | Raw Tactile | Raw Tactile Stack | Visual-only |
 |---|---|---|---|---|---|
-| Symmetric / uniform (22 objects) | 96.1 ± 0.0 | **94.2 ± 1.4** | 90.4 ± 1.9 | 92.0 ± 0.6 | 89.5 ± 0.4 |
-| Thin / elongated (11 objects) | 89.3 ± 1.3 | **82.9 ± 1.2** | 73.3 ± 9.5 | 76.7 ± 2.1 | 15.4 ± 1.5 |
-| Irregular (29 objects) | 96.1 ± 0.1 | **93.0 ± 0.5** | 80.4 ± 1.5 | 78.0 ± 4.9 | 70.9 ± 9.3 |
+| Symmetric / uniform (22 objects) | 95.7 ± 0.8 | **94.2 ± 1.4** | 90.4 ± 1.9 | 92.0 ± 0.6 | 86.6 ± 5.0 |
+| Thin / elongated (11 objects) | 89.5 ± 1.0 | **82.9 ± 1.2** | 73.3 ± 9.5 | 76.7 ± 2.1 | 10.7 ± 8.2 |
+| Irregular (29 objects) | 95.4 ± 1.1 | **93.0 ± 0.5** | 80.4 ± 1.5 | 78.0 ± 4.9 | 61.1 ± 18.3 |
 
 - **Symmetric Objects (+3.8 vs single-frame, +2.2 vs stacked)** 
 - **Thin / Elongated Objects (+9.6 vs single-frame, +6.2 vs stacked)**
@@ -178,10 +180,10 @@ python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_raw_tact --e
 python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_raw_tact_stack --exp-name policy_raw_tactile_stack
 python training/ppo.py $COMMON --seed 4796 --experiment-mode visual_only --exp-name policy_visual_only
  
-# Training seeds 1 and 4 (Oracle and Visual-only: seed 1 only)
-python training/ppo.py $COMMON --seed 1 --experiment-mode oracle --exp-name policy_oracle_seed1
-python training/ppo.py $COMMON --seed 1 --experiment-mode visual_only --exp-name policy_visual_only_seed1
+# Training seeds 1 and 4
 for s in 1 4; do
+  python training/ppo.py $COMMON --seed $s --experiment-mode oracle --exp-name policy_oracle_seed$s
+  python training/ppo.py $COMMON --seed $s --experiment-mode visual_only --exp-name policy_visual_only_seed$s
   python training/ppo.py $COMMON --seed $s --experiment-mode visual_encoder --exp-name policy_encoder_seed$s
   python training/ppo.py $COMMON --seed $s --experiment-mode visual_raw_tact --exp-name policy_raw_tactile_seed$s
   python training/ppo.py $COMMON --seed $s --experiment-mode visual_raw_tact_stack --exp-name policy_raw_tactile_stack_seed$s
@@ -191,7 +193,7 @@ done
 ### 3. Evaluate
 
 ```bash
-python evaluation/evaluation.py                      # all 13 runs; resumes if interrupted
+python evaluation/evaluation.py                      # all 15 runs; resumes if interrupted
 python evaluation/per_category_analysis.py           # Table III
 python evaluation/per_object_runs.py --object wrench # adjustable-wrench example
 ```
@@ -235,9 +237,9 @@ plots can be regenerated in any tool without rerunning the pipeline.
   representation unopposed. Within-phase oscillation compresses ~16×; phase
   transitions stay proportionally distinct (transition/within-phase
   step-distance ratio preserved, 8.8× → 10.7×) because the gate never penalizes
-  them and the auxiliary heads require phase-distinct latents — structure an
+  them and the auxiliary heads require phase-distinct latents - structure an
   always-on L2 penalty would erode.
-- **Statistics.** Success rates are calculated separately for each evaluation seed (620 episodes; 10 per object). Each training run is summarized by the mean $\pm$ SD across its 10 evaluation seeds. For between-condition comparisons, training runs are the unit of analysis; we report the mean and range of the run-level means. Per-object and per-category success rates use the same per-seed aggregation. Success–failure comparisons of force and latent statistics—grasp asymmetry and transport $\| \Delta z_t \|$—use two-sided Mann–Whitney *U* tests on per-episode values.
+- **Statistics.** Success rates are calculated separately for each evaluation seed (620 episodes; 10 per object). Each training run is summarized by the mean $\pm$ SD across its 10 evaluation seeds. For between-condition comparisons, training runs are the unit of analysis; we report the mean and range of the run-level means. Per-object and per-category success rates use the same per-seed aggregation. Success-failure comparisons of force and latent statistics-grasp asymmetry and transport $\| \Delta z_t \|$-use two-sided Mann–Whitney *U* tests on per-episode values.
 
 ## Implementation Details
 <details>
@@ -293,10 +295,10 @@ The observation modality is the only difference between conditions.
 
 ## Checkpoint naming
 
-- policy_{oracle,encoder,raw_tactile,raw_tactile_stack,visual_only}.pt — seed 4796
-- policy_{oracle,visual_only}_seed1.pt, policy_{encoder,raw_tactile,raw_tactile_stack}_seed{1,4}.pt — retraining runs
-- policy_encoder_no_hinge.pt — policy on the no-hinge encoder (hinge ablation, step 4)
-- dataGen_policy.pt — oracle expert used to collect pre-training data
+- policy_{oracle,encoder,raw_tactile,raw_tactile_stack,visual_only}.pt - seed 4796
+- policy_{oracle,encoder,raw_tactile,raw_tactile_stack,visual_only}_seed{1,4}.pt - retraining runs
+- policy_encoder_no_hinge.pt - policy on the no-hinge encoder (hinge ablation, step 4)
+- dataGen_policy.pt - oracle expert used to collect pre-training data
 
 ## Acknowledgments
 
