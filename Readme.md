@@ -1,10 +1,9 @@
 # Task-Aligned Tactile Representation Learning for Robotic Manipulation
 
-**IEEE ROBIO 2026** · Min Joong Kim\*, Zhengrong Ling\*, Yajing Shen · The Hong Kong University of Science and Technology
-<br>\* Equal contribution
+**IEEE ROBIO 2026** · Min Joong Kim\*, Zhengrong Ling\*, Yajing Shen · The Hong Kong University of Science and Technology <br>\* Equal contribution
 
 Code and data for **Task-Aligned Tactile Representation Learning for Robotic
-Manipulation**.
+Manipulation**
 
 <p align="center">
   <img src="assets/task_description.png" width="100%" alt="Grasp-transfer-place task: free-space, approach, grasp, transport through the waypoint, place on the tray">
