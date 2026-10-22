@@ -1,5 +1,6 @@
 """
 probe_grasp_outcome.py
+Section 3-D
 ======================
 Probe experiment: does the encoder's latent representation carry more
 outcome-discriminative information during grasp than the raw tactile signal?

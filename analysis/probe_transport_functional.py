@@ -1,5 +1,6 @@
 """
 probe_transport_functional.py
+Section 3-D
 =============================
   TRANSPORT OUTCOME PROBE
     Predict episode success from the per-episode mean representation over

@@ -1,4 +1,5 @@
 """
+Section 3-C
 Usage:
   python evaluation/per_object_runs.py # wrench
   python evaluation/per_object_runs.py --object lego_duplo  # substring; pools all matches

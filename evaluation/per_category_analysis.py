@@ -1,4 +1,5 @@
 """
+Section 3-C
 Per-category success-rate breakdown script for multi-seed evaluation results.
 
 Groups the 62 YCB evaluation objects into three structural categories:

@@ -1,5 +1,6 @@
 """
 plot_grasp_asymmetry_separation.py
+Section 3-D
 ==================================
 grasp-phase tactile force asymmetry (successful vs failed episodes)
 

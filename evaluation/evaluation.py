@@ -1,4 +1,5 @@
 """
+Section 3-C
 Multi-seed evaluation script for trained ablation policies (primary and robustness runs).
 
 For each (condition, seed, object) combination, this script executes 10 parallel episodes 

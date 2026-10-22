@@ -1,6 +1,7 @@
 """
 verify_hinge_margin_claim.py
 ============================
+Section (3-B)
 Compares step-to-step latent oscillation ||z_t - z_{t-1}||_2 between
 V1 (no hinge loss) and V2 (with hinge loss), split into within-phase steps
 and phase-transition steps. Establishes:

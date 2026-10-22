@@ -1,6 +1,7 @@
 """
 plot_transport_dz.py
 ================================
+Section (3-B)
 two-panel comparison of transport-phase
 latent oscillation between V1 (no hinge loss) and V2 (with hinge loss).
 

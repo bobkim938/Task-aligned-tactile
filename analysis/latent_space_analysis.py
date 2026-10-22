@@ -1,6 +1,7 @@
 """
 latent_space_analysis.py
 ====================================
+Section (3-A)
 Panel A: 3-class phase classification accuracy from three feature sets:
          norm-only (1D), direction-only (16D), full z_t (16D), via 5-fold CV.
          Tests whether phase information lives in latent direction vs magnitude
